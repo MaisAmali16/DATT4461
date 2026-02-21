@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Shopping Task Study</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="topbar" id="topbar">
+    <div class="brand">
+      <span class="siteMark" id="siteMark"></span>
+      <span class="siteName" id="siteName">Shopping Task Study</span>
+    </div>
+    <div class="status" id="statusText">Not started</div>
+  </header>
+
+  <main class="container">
+
+    <!-- CONSENT -->
+    <section class="card" id="screen-consent">
+      <h1>Consent</h1>
+      <p class="muted">
+        You will complete short shopping tasks and answer questions about your experience.
+        Participation is voluntary and you may stop at any time.
+      </p>
+
+      <div class="notice">
+        <strong>Privacy:</strong> Please do not enter your name or email. Use a Participant ID only.
+      </div>
+
+      <label class="field">
+        <span>Participant ID (required)</span>
+        <input id="participantId" type="text" placeholder="e.g., P012" autocomplete="off" />
+      </label>
+
+      <label class="checkbox">
+        <input id="consentCheck" type="checkbox" />
+        <span>I have read the information above and I consent to participate.</span>
+      </label>
+
+      <div class="row">
+        <button class="btn primary" id="btnConsentStart">Start</button>
+      </div>
+
+      <p class="tiny muted">
+        This interface simulates common online checkout steps. No real payment is processed.
+      </p>
+    </section>
+
+    <!-- DEMOGRAPHICS -->
+    <section class="card hidden" id="screen-demographics">
+      <h1>Demographics</h1>
+
+      <div class="grid2">
+        <label class="field">
+          <span>Age range</span>
+          <select id="demoAge">
+            <option value="">Select…</option>
+            <option>Under 18</option>
+            <option>18–24</option>
+            <option>25–34</option>
+            <option>35–44</option>
+            <option>45+</option>
+            <option>Prefer not to say</option>
+          </select>
+        </label>
+
+        <label class="field">
+          <span>Online shopping frequency</span>
+          <select id="demoShopFreq">
+            <option value="">Select…</option>
+            <option>Never</option>
+            <option>Rarely</option>
+            <option>Sometimes</option>
+            <option>Often</option>
+            <option>Very often</option>
+          </select>
+        </label>
+
+        <label class="field">
+          <span>Comfort using online checkout</span>
+          <select id="demoComfort">
+            <option value="">Select…</option>
+            <option>1 (Not comfortable)</option>
+            <option>2</option>
+            <option>3</option>
+            <option>4</option>
+            <option>5 (Very comfortable)</option>
+          </select>
+        </label>
+
+        <label class="field">
+          <span>Device used</span>
+          <select id="demoDevice">
+            <option value="">Select…</option>
+            <option>Laptop</option>
+            <option>Desktop</option>
+            <option>Tablet</option>
+            <option>Phone</option>
+            <option>Other</option>
+          </select>
+        </label>
+      </div>
+
+      <label class="field">
+        <span>Anything else you'd like to share? (optional)</span>
+        <textarea id="demoNotes" rows="3" placeholder="Optional"></textarea>
+      </label>
+
+      <div class="row">
+        <button class="btn primary" id="btnDemographicsNext">Continue</button>
+      </div>
+    </section>
+
+    <!-- TASK -->
+    <section class="card hidden" id="screen-task">
+      <div class="taskHeader">
+        <h1 id="taskTitle">Shopping Task</h1>
+        <div class="pill" id="pillProgress">Case 1 of 4</div>
+      </div>
+
+      <div class="steps" aria-label="Checkout steps">
+        <button class="step active" id="step0Btn" type="button">1. Browse</button>
+        <button class="step" id="step1Btn" type="button">2. Cart</button>
+        <button class="step" id="step2Btn" type="button">3. Checkout</button>
+        <button class="step" id="step3Btn" type="button">4. Review</button>
+      </div>
+
+      <div class="panel" id="stepContent"></div>
+
+      <div class="row spaceBetween">
+        <button class="btn danger" id="btnCancelExit">Cancel/Exit</button>
+
+        <div class="row">
+          <button class="btn ghost" id="btnBack">Back</button>
+          <button class="btn primary" id="btnNext">Next</button>
+        </div>
+      </div>
+
+      <p class="tiny muted" id="taskHint"></p>
+    </section>
+
+    <!-- ORDER CONFIRMED -->
+    <section class="card hidden" id="screen-confirmed">
+      <div class="confirmWrap">
+        <div class="checkCircle" aria-hidden="true">✓</div>
+        <h1>Thank you for your purchase</h1>
+        <p class="muted">
+          Your order has been confirmed. You should receive an email with tracking details shortly.
+        </p>
+
+        <div class="notice" id="confirmedDetails"></div>
+
+        <div class="row spaceBetween">
+          <button class="btn ghost" id="btnConfirmedContinue">Continue</button>
+          <span class="tiny muted" id="autoContinueHint"></span>
+        </div>
+      </div>
+    </section>
+
+    <!-- SURVEY -->
+    <section class="card hidden" id="screen-survey">
+      <h1>Post-study survey</h1>
+      <p class="muted">
+        Rate each statement based on your overall experience.
+        (1 = strongly disagree, 7 = strongly agree)
+      </p>
+
+      <div class="likertBlock" id="surveyLikerts"></div>
+
+      <label class="field">
+        <span>What influenced your decisions the most? (optional)</span>
+        <textarea id="surveyInfluences" rows="4" placeholder="Optional"></textarea>
+      </label>
+
+      <label class="field">
+        <span>Anything confusing or frustrating? (optional)</span>
+        <textarea id="surveyIssues" rows="4" placeholder="Optional"></textarea>
+      </label>
+
+      <div class="row">
+        <button class="btn primary" id="btnSurveyNext">Continue</button>
+      </div>
+    </section>
+
+    <!-- DEBRIEF / EXPORT -->
+    <section class="card hidden" id="screen-debrief">
+      <h1>Debrief</h1>
+      <p class="muted">
+        Thank you for participating. Please export the session data below.
+      </p>
+
+      <div class="row">
+        <button class="btn primary" id="btnExportJSON">Download JSON</button>
+        <button class="btn ghost" id="btnExportCSV">Download CSV</button>
+      </div>
+
+      <div class="notice">
+        <strong>Researcher reminder:</strong> Store exported files using the Participant ID in the filename.
+      </div>
+
+      <div class="row">
+        <button class="btn danger" id="btnResetAll">Reset for Next Participant</button>
+      </div>
+
+      <details class="debug">
+        <summary>Preview logged events (for checking)</summary>
+        <pre id="debugLog"></pre>
+      </details>
+    </section>
+
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
