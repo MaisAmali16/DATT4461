@@ -143,6 +143,7 @@ textarea{ resize: vertical; }
 }
 
 .btn:hover{ background: var(--surface); }
+.btn:disabled{ opacity: 0.5; cursor: not-allowed; }
 
 .btn.primary{
   border-color: rgba(31,122,58,0.6);
@@ -150,7 +151,7 @@ textarea{ resize: vertical; }
   color: #fff;
 }
 
-.btn.primary:hover{ filter: brightness(1.03); }
+.btn.primary:hover:not(:disabled){ filter: brightness(1.03); }
 
 .btn.ghost{
   background: #ffffff;
@@ -252,9 +253,35 @@ textarea{ resize: vertical; }
   padding: 14px;
 }
 
+/* Selectable Product Cards */
+.productGrid {
+  display: grid;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.selectableCard {
+  border: 2px solid var(--line);
+  border-radius: 12px;
+  padding: 14px;
+  background: #ffffff;
+  cursor: pointer;
+  transition: all 0.15s ease-in-out;
+}
+
+.selectableCard:hover {
+  border-color: #999;
+  background: var(--surface);
+}
+
+.selectableCard.selected {
+  border-color: var(--green);
+  background: var(--greenSoft);
+}
+
 .imgPh{
-  width: 160px;
-  height: 120px;
+  width: 140px;
+  height: 100px;
   border-radius: 12px;
   border: 1px solid var(--line);
   background: linear-gradient(135deg, #f2f2f2, #e6e6e6);
@@ -265,6 +292,7 @@ textarea{ resize: vertical; }
   font-size: 12px;
   text-align:center;
   padding: 10px;
+  flex-shrink: 0;
 }
 
 .imgPh img{

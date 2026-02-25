@@ -1,8 +1,7 @@
-/* v4: No training. Guaranteed 4 cases. No loop unless Reset.
-   Flow: Consent → Demographics → 4 cases → Survey → Debrief
+/* Flow: Consent/Login → Demographics → 4 cases → Survey → Debrief
    Completion = Purchase/Confirm (shows confirmation screen)
    Abandonment = Cancel/Exit (skips confirmation)
-   Scripted price change: first time entering Review step, +/-10% per condition
+   Scripted price change: first time entering Review step, +/-20% per condition
 */
 
 const SCREENS = [
@@ -57,8 +56,6 @@ function setTheme(siteKey){
 }
 
 // --- Image naming scheme (put in /images) ---
-// food_1.jpg, food_2.jpg, food_3.jpg
-// flight_1.jpg, flight_2.jpg, flight_3.jpg
 const FOOD_CASES = [
   { name: "Lunch Combo", desc: "Sandwich + drink", basePrice: 14.99, imageSrc: "images/food_1.jpg", imageAlt: "Sandwich combo meal" },
   { name: "Sushi Bowl", desc: "Salmon bowl + miso soup", basePrice: 16.49, imageSrc: "images/food_2.jpg", imageAlt: "Sushi bowl meal" },
@@ -99,9 +96,9 @@ const FLIGHT_CASES = [
 const state = {
   participantId: "",
   demographics: {},
-  order: [],           // array of condition keys length 4
-  currentIndex: 0,     // 0..3
-  active: null,        // current run object
+  order: [],           
+  currentIndex: 0,     
+  active: null,        
   currentStep: 0,
   maxStepReached: 0,
   runs: [],
@@ -120,11 +117,6 @@ function stableHashToInt(str){
 function getOrderForParticipant(pid){
   const idx = stableHashToInt(pid.trim().toUpperCase()) % ORDERS.length;
   return ORDERS[idx];
-}
-
-function pickVariant(pid, key, count){
-  const seed = stableHashToInt((pid || "X") + "::" + key);
-  return seed % count;
 }
 
 function nowISO(){ return new Date().toISOString(); }
@@ -200,28 +192,20 @@ function getConditionByKey(key){
   return c;
 }
 
-function getStimulus(cond){
-  const pid = state.participantId || "X";
-  if(cond.context === "Food"){
-    return FOOD_CASES[pickVariant(pid, "FOOD", FOOD_CASES.length)];
-  }
-  return FLIGHT_CASES[pickVariant(pid, "FLIGHT", FLIGHT_CASES.length)];
-}
-
 function startCase(index){
   state.currentIndex = index;
 
   const condKey = state.order[index];
   const cond = getConditionByKey(condKey);
-  const stim = getStimulus(cond);
 
   state.active = {
     runKey: cond.key,
     condition: cond,
-    product: stim,
+    availableProducts: cond.context === "Food" ? FOOD_CASES : FLIGHT_CASES,
+    product: null, // Starts as null, user must select one
 
-    basePrice: stim.basePrice,
-    currentPrice: stim.basePrice,
+    basePrice: 0,
+    currentPrice: 0,
 
     t0iso: nowISO(),
     t0ms: Date.now(),
@@ -231,7 +215,7 @@ function startCase(index){
     priceBefore: null,
     priceAfter: null,
 
-    outcome: null,             // "purchase_confirm" | "cancel_exit"
+    outcome: null,             
     outcomeAtMs: null,
     rtAfterPriceChangeMs: null,
     orderId: null,
@@ -283,7 +267,8 @@ function renderStep(){
   const panel = $("stepContent");
   const run = state.active;
   const cond = run.condition;
-  const p = run.product;
+  // Use a placeholder if product not yet selected
+  const p = run.product || { name: "—", desc: "—", basePrice: 0, from: "—", to: "—" };
 
   const step = state.currentStep;
 
@@ -303,7 +288,7 @@ function renderStep(){
     ? `<span class="badge warn">Price updated</span>`
     : `<span class="badge ok">Price stable</span>`;
 
-  const flightSummary = (cond.context === "Flight")
+  const flightSummary = (cond.context === "Flight" && run.product)
     ? `
       <div class="cardBlock" style="margin-top:14px;">
         <div style="font-weight:650;">Trip summary</div>
@@ -318,9 +303,9 @@ function renderStep(){
   const sidePrice = `
     <div class="priceBox">
       <div class="priceRow"><span class="muted">${cond.context === "Flight" ? "Fare" : "Item"}</span><span>${p.name}</span></div>
-      <div class="priceRow"><span class="muted">Details</span><span>${cond.context === "Flight" ? `${p.from} → ${p.to}` : p.desc}</span></div>
+      <div class="priceRow"><span class="muted">Details</span><span>${cond.context === "Flight" && run.product ? `${p.from} → ${p.to}` : p.desc}</span></div>
       <hr style="border:none;border-top:1px solid #e6e6e6;margin:10px 0;">
-      <div class="priceRow"><span class="muted">Current price</span><span><strong>${money(run.currentPrice)}</strong></span></div>
+      <div class="priceRow"><span class="muted">Current price</span><span><strong>${run.product ? money(run.currentPrice) : "—"}</strong></span></div>
       <div class="priceRow"><span class="muted">Status</span><span>${badge}</span></div>
       ${run.priceChanged ? `<div class="priceRow"><span class="muted">Original price</span><span>${money(run.priceBefore)}</span></div>` : ""}
       <div class="tiny muted" style="margin-top:8px;">(A scripted price update may occur during checkout.)</div>
@@ -342,23 +327,47 @@ function renderStep(){
 
   const backBtn = $("btnBack");
   const nextBtn = $("btnNext");
-  //Browse
-  if(step === 0){
-    const subtitle = cond.context === "Food"
-      ? "Browse the item and proceed as if you intend to purchase it."
-      : "Browse the flight and proceed as if you intend to purchase it.";
 
-    const extra = (cond.context === "Flight")
-      ? `<ul class="muted" style="margin:10px 0 0; padding-left:18px;">
-          ${(p.details || []).map(d => `<li>${d}</li>`).join("")}
-        </ul>`
-      : "";
+  // Browse Step (0)
+  if(step === 0){
+    const products = run.availableProducts;
+    
+    // Generate the list of 3 items
+    const listHTML = products.map((prod, idx) => {
+      const isSelected = run.product === prod;
+      const detailsHTML = cond.context === "Flight"
+        ? `<div class="muted" style="margin-top:4px;">${prod.from} → ${prod.to}<br>${prod.dateOut} - ${prod.dateBack}</div>
+           <ul class="muted" style="margin:6px 0 0; padding-left:18px; font-size:13px;">
+             ${(prod.details || []).map(d => `<li>${d}</li>`).join("")}
+           </ul>`
+        : `<div class="muted" style="margin-top:4px;">${prod.desc}</div>`;
+
+      return `
+        <div class="selectableCard ${isSelected ? 'selected' : ''}" data-idx="${idx}">
+          <div style="display:flex; gap:12px; align-items:flex-start;">
+            ${renderMedia(prod)}
+            <div style="flex:1;">
+              <div style="display:flex; justify-content:space-between;">
+                <div style="font-weight:750; font-size:18px;">${prod.name}</div>
+                <div style="font-weight:750; font-size:16px;">${money(prod.basePrice)}</div>
+              </div>
+              ${detailsHTML}
+            </div>
+          </div>
+        </div>
+      `;
+    }).join("");
 
     panel.innerHTML = `
       <div class="storeLayout">
         <div>
-          ${leftBase(cond.context === "Food" ? "Browse" : "Browse flights", subtitle, extra)}
-          ${flightSummary}
+          <div class="cardBlock">
+             <div style="font-weight:750; font-size:18px;">${cond.context === "Food" ? "Select a meal" : "Select a flight"}</div>
+             <div class="muted" style="margin-top:4px;">Choose one option to proceed with your purchase.</div>
+             <div class="productGrid">
+               ${listHTML}
+             </div>
+          </div>
         </div>
         <div>
           ${sidePrice}
@@ -372,14 +381,29 @@ function renderStep(){
         </div>
       </div>
     `;
-    backBtn.disabled = true;
-    nextBtn.disabled = false;
-    nextBtn.textContent = cond.context === "Food" ? "Add to Cart" : "Select Flight";
-    // Hide the back button on the first screen
+
+    // Attach click events to select a product
+    panel.querySelectorAll('.selectableCard').forEach(el => {
+      el.addEventListener('click', () => {
+        const idx = el.getAttribute('data-idx');
+        run.product = products[idx];
+        run.basePrice = run.product.basePrice;
+        run.currentPrice = run.product.basePrice;
+        renderStep(); // Re-render to show visual selection and update side panel
+      });
+    });
+
+    // Back button hidden on the first step entirely
     backBtn.style.display = "none";
+    backBtn.disabled = true;
+
+    // Next button disabled until an item is clicked
+    nextBtn.disabled = !run.product;
+    nextBtn.textContent = cond.context === "Food" ? "Add to Cart" : "Select Flight";
     return;
   }
 
+  // Cart (Step 1)
   if(step === 1){
     panel.innerHTML = `
       <div class="storeLayout">
@@ -400,14 +424,14 @@ function renderStep(){
         </div>
       </div>
     `;
+    backBtn.style.display = "inline-block";
     backBtn.disabled = false;
     nextBtn.disabled = false;
     nextBtn.textContent = "Proceed to Checkout";
-    // Show the back button
-  backBtn.style.display = "inline-block";
     return;
   }
 
+  // Checkout (Step 2)
   if(step === 2){
     panel.innerHTML = `
       <div class="storeLayout">
@@ -442,15 +466,14 @@ function renderStep(){
         </div>
       </div>
     `;
+    backBtn.style.display = "inline-block";
     backBtn.disabled = false;
     nextBtn.disabled = false;
     nextBtn.textContent = "Go to Review";
-    // Show the back button
-  backBtn.style.display = "inline-block";
     return;
   }
 
-  // Review
+  // Review (Step 3)
   panel.innerHTML = `
     <div class="storeLayout">
       <div>
@@ -481,17 +504,16 @@ function renderStep(){
   $("btnPurchaseConfirm").addEventListener("click", () => finishRun("purchase_confirm"));
   $("btnCancelFromReview").addEventListener("click", () => finishRun("cancel_exit"));
 
-  backBtn.disabled = false;
-  nextBtn.disabled = true;
-  // Show the back button
   backBtn.style.display = "inline-block";
+  backBtn.disabled = false;
+  nextBtn.disabled = true; // No "next" button on final screen, user clicks Confirm or Cancel
 }
 
 // --- Finish run ---
 function showConfirmed(run){
   run.orderId = makeOrderId();
   const c = run.condition;
-  const p = run.product;
+  const p = run.product || { from: "?", to: "?", dateOut: "?", dateBack: "?", name: "?" };
 
   const lines = (c.context === "Flight")
     ? `
@@ -548,12 +570,11 @@ function finishRun(outcome){
     rtAfterPriceChangeMs: run.rtAfterPriceChangeMs
   });
 
-  // Store the run now (so no data loss)
+  // Store the run now
   state.runs.push(run);
   state.active = null;
 
   if(outcome === "purchase_confirm"){
-    // Show confirmation using the stored run (last run)
     showConfirmed(state.runs[state.runs.length - 1]);
   } else {
     // Cancel goes straight to next case
@@ -562,7 +583,6 @@ function finishRun(outcome){
 }
 
 function proceedNext(){
-  // If we were on confirmation screen, stop its timer
   if(state.autoTimer){
     clearInterval(state.autoTimer);
     state.autoTimer = null;
@@ -633,10 +653,10 @@ function exportCSV(){
 
   data.runs.forEach((run, idx) => {
     const c = run.condition;
-    const p = run.product;
+    const p = run.product || {};
     const summary = (c.context === "Flight")
-      ? `${p.from} → ${p.to} (${p.dateOut}–${p.dateBack})`
-      : p.desc;
+      ? (p.from ? `${p.from} → ${p.to} (${p.dateOut}–${p.dateBack})` : "")
+      : (p.desc || "");
 
     rows.push([
       data.meta.participantId,
@@ -646,7 +666,7 @@ function exportCSV(){
       c.context,
       c.direction,
       c.deltaPct,
-      p.name,
+      p.name || "None Selected",
       summary,
       run.basePrice,
       run.priceBefore ?? "",
@@ -674,7 +694,6 @@ function init(){
   setStatus("Not started");
   showScreen("screen-consent");
 
-  // Step pills clickable (only up to max reached)
   stepButtons.forEach((btn, i) => {
     btn.addEventListener("click", () => {
       if(i <= state.maxStepReached){
@@ -687,7 +706,7 @@ function init(){
     const pid = $("participantId").value.trim();
     const ok = $("consentCheck").checked;
     if(!pid){ alert("Please enter a Participant ID."); return; }
-    if(!ok){ alert("Please confirm consent to continue."); return; }
+    if(!ok){ alert("Please confirm that you have completed the consent form."); return; }
 
     state.participantId = pid;
     state.order = getOrderForParticipant(pid);
@@ -714,7 +733,6 @@ function init(){
   });
 
   $("btnCancelExit").addEventListener("click", () => {
-    // Cancel at any step
     finishRun("cancel_exit");
   });
 
