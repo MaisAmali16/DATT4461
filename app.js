@@ -28,10 +28,10 @@ const stepButtons = [
 
 // --- Conditions (4 cases) ---
 const CONDITIONS = [
-  { key: "LI_INC", context: "Food",   direction: "Increase", deltaPct: +0.10, siteKey: "Eatsly"     },
-  { key: "LI_DEC", context: "Food",   direction: "Decrease", deltaPct: -0.10, siteKey: "QuickBite"  },
-  { key: "HI_INC", context: "Flight", direction: "Increase", deltaPct: +0.10, siteKey: "SkyBook"    },
-  { key: "HI_DEC", context: "Flight", direction: "Decrease", deltaPct: -0.10, siteKey: "FlyCentre"  },
+  { key: "LI_INC", context: "Food",   direction: "Increase", deltaPct: +0.20, siteKey: "Eatsly"     },
+  { key: "LI_DEC", context: "Food",   direction: "Decrease", deltaPct: -0.20, siteKey: "QuickBite"  },
+  { key: "HI_INC", context: "Flight", direction: "Increase", deltaPct: +0.20, siteKey: "SkyBook"    },
+  { key: "HI_DEC", context: "Flight", direction: "Decrease", deltaPct: -0.20, siteKey: "FlyCentre"  },
 ];
 
 // Latin-square style order rotation (deterministic by Participant ID)
@@ -70,7 +70,7 @@ const FLIGHT_CASES = [
     name: "Round-trip Flight",
     from: "Toronto (YYZ)", to: "Vancouver (YVR)",
     dateOut: "Mar 18", dateBack: "Mar 24",
-    basePrice: 389.00,
+    basePrice: 389.99,
     imageSrc: "images/flight_1.jpg",
     imageAlt: "Airplane wing in the sky",
     details: ["Nonstop", "Carry-on included", "Economy (standard)"],
@@ -79,7 +79,7 @@ const FLIGHT_CASES = [
     name: "Round-trip Flight",
     from: "Toronto (YYZ)", to: "Calgary (YYC)",
     dateOut: "Apr 05", dateBack: "Apr 10",
-    basePrice: 279.00,
+    basePrice: 279.99,
     imageSrc: "images/flight_2.jpg",
     imageAlt: "Airport departures board",
     details: ["1 stop", "Carry-on included", "Short layover"],
@@ -88,7 +88,7 @@ const FLIGHT_CASES = [
     name: "Round-trip Flight",
     from: "Toronto (YYZ)", to: "Montreal (YUL)",
     dateOut: "May 02", dateBack: "May 05",
-    basePrice: 199.00,
+    basePrice: 199.99,
     imageSrc: "images/flight_3.jpg",
     imageAlt: "Airplane at the gate",
     details: ["Nonstop", "Personal item included", "Seat selection extra"],
@@ -342,7 +342,7 @@ function renderStep(){
 
   const backBtn = $("btnBack");
   const nextBtn = $("btnNext");
-
+  //Browse
   if(step === 0){
     const subtitle = cond.context === "Food"
       ? "Browse the item and proceed as if you intend to purchase it."
@@ -375,6 +375,8 @@ function renderStep(){
     backBtn.disabled = true;
     nextBtn.disabled = false;
     nextBtn.textContent = cond.context === "Food" ? "Add to Cart" : "Select Flight";
+    // Hide the back button on the first screen
+    backBtn.style.display = "none";
     return;
   }
 
@@ -401,6 +403,8 @@ function renderStep(){
     backBtn.disabled = false;
     nextBtn.disabled = false;
     nextBtn.textContent = "Proceed to Checkout";
+    // Show the back button
+  backBtn.style.display = "inline-block";
     return;
   }
 
@@ -441,6 +445,8 @@ function renderStep(){
     backBtn.disabled = false;
     nextBtn.disabled = false;
     nextBtn.textContent = "Go to Review";
+    // Show the back button
+  backBtn.style.display = "inline-block";
     return;
   }
 
@@ -477,6 +483,8 @@ function renderStep(){
 
   backBtn.disabled = false;
   nextBtn.disabled = true;
+  // Show the back button
+  backBtn.style.display = "inline-block";
 }
 
 // --- Finish run ---
