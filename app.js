@@ -1,15 +1,13 @@
-/* Flow: Consent/Login → Demographics → 4 cases → Survey → Debrief
+/* Flow: Consent/Login (w/ Group Assignment) → 4 cases → Debrief
    Completion = Purchase/Confirm (shows confirmation screen)
-   Abandonment = Cancel/Exit (skips confirmation)
+   Abandonment = Cancel/Exit (skips confirmation, ONLY allowed on Review step)
    Scripted price change: first time entering Review step, +/-20% per condition
 */
 
 const SCREENS = [
   "screen-consent",
-  "screen-demographics",
   "screen-task",
   "screen-confirmed",
-  "screen-survey",
   "screen-debrief",
 ];
 
@@ -33,12 +31,12 @@ const CONDITIONS = [
   { key: "HI_DEC", context: "Flight", direction: "Decrease", deltaPct: -0.20, siteKey: "FlyCentre"  },
 ];
 
-// Latin-square style order rotation (deterministic by Participant ID)
+// Latin-square style order rotation 
 const ORDERS = [
-  ["LI_INC", "LI_DEC", "HI_INC", "HI_DEC"],
-  ["LI_DEC", "HI_INC", "HI_DEC", "LI_INC"],
-  ["HI_INC", "HI_DEC", "LI_INC", "LI_DEC"],
-  ["HI_DEC", "LI_INC", "LI_DEC", "HI_INC"],
+  ["LI_INC", "LI_DEC", "HI_INC", "HI_DEC"], // Group 1 (index 0)
+  ["LI_DEC", "HI_INC", "HI_DEC", "LI_INC"], // Group 2 (index 1)
+  ["HI_INC", "HI_DEC", "LI_INC", "LI_DEC"], // Group 3 (index 2)
+  ["HI_DEC", "LI_INC", "LI_DEC", "HI_INC"], // Group 4 (index 3)
 ];
 
 const SITE_THEMES = {
@@ -65,37 +63,37 @@ const FOOD_CASES = [
 const FLIGHT_CASES = [
   {
     name: "Round-trip Flight",
-    from: "Toronto (YYZ)", to: "Vancouver (YVR)",
-    dateOut: "Mar 18", dateBack: "Mar 24",
-    basePrice: 389.99,
+    from: "Toronto (YYZ)", to: "Tokyo (NRT)",
+    dateOut: "May 10", dateBack: "May 24",
+    basePrice: 1249.99,
     imageSrc: "images/flight_1.jpg",
-    imageAlt: "Airplane wing in the sky",
+    imageAlt: "Airplane flying over city",
+    details: ["1 Stop", "Carry-on & checked bag included", "Economy (standard)"],
+  },
+  {
+    name: "Round-trip Flight",
+    from: "Toronto (YYZ)", to: "London (LHR)",
+    dateOut: "Jun 05", dateBack: "Jun 12",
+    basePrice: 989.99,
+    imageSrc: "images/flight_2.jpg",
+    imageAlt: "Airplane on the tarmac",
     details: ["Nonstop", "Carry-on included", "Economy (standard)"],
   },
   {
     name: "Round-trip Flight",
-    from: "Toronto (YYZ)", to: "Calgary (YYC)",
-    dateOut: "Apr 05", dateBack: "Apr 10",
-    basePrice: 279.99,
-    imageSrc: "images/flight_2.jpg",
-    imageAlt: "Airport departures board",
-    details: ["1 stop", "Carry-on included", "Short layover"],
-  },
-  {
-    name: "Round-trip Flight",
-    from: "Toronto (YYZ)", to: "Montreal (YUL)",
-    dateOut: "May 02", dateBack: "May 05",
-    basePrice: 199.99,
+    from: "Toronto (YYZ)", to: "Paris (CDG)",
+    dateOut: "Jul 02", dateBack: "Jul 15",
+    basePrice: 1059.99,
     imageSrc: "images/flight_3.jpg",
-    imageAlt: "Airplane at the gate",
-    details: ["Nonstop", "Personal item included", "Seat selection extra"],
+    imageAlt: "Airplane wing in the sky",
+    details: ["1 stop", "Carry-on included", "Economy (standard)"],
   },
 ];
 
 // --- State ---
 const state = {
   participantId: "",
-  demographics: {},
+  groupAssignment: null,
   order: [],           
   currentIndex: 0,     
   active: null,        
@@ -106,25 +104,13 @@ const state = {
 };
 
 // --- Helpers ---
-function stableHashToInt(str){
-  let h = 0;
-  for (let i=0; i<str.length; i++){
-    h = (h * 31 + str.charCodeAt(i)) >>> 0;
-  }
-  return h;
-}
-
-function getOrderForParticipant(pid){
-  const idx = stableHashToInt(pid.trim().toUpperCase()) % ORDERS.length;
-  return ORDERS[idx];
-}
-
 function nowISO(){ return new Date().toISOString(); }
 function money(n){ return `$${n.toFixed(2)}`; }
 
 function showScreen(id){
   for(const s of SCREENS){
-    $(s).classList.toggle("hidden", s !== id);
+    const el = $(s);
+    if (el) el.classList.toggle("hidden", s !== id);
   }
 }
 
@@ -134,55 +120,6 @@ function makeOrderId(){
   const a = Math.floor(100000 + Math.random()*900000);
   const b = Math.floor(1000 + Math.random()*9000);
   return `#${a}-${b}`;
-}
-
-// --- Survey ---
-const SURVEY_ITEMS = [
-  { id: "trust", label: "I trust the pricing shown during the tasks." },
-  { id: "fairness", label: "The pricing felt fair." },
-  { id: "transparency", label: "The pricing felt transparent and understandable." },
-  { id: "control", label: "I felt in control of my decision-making." },
-  { id: "willingness", label: "I would be willing to use a site like this in real life." },
-];
-
-function renderSurveyLikerts(){
-  const wrap = $("surveyLikerts");
-  wrap.innerHTML = "";
-  for(const item of SURVEY_ITEMS){
-    const div = document.createElement("div");
-    div.className = "likertItem";
-    div.innerHTML = `
-      <div><strong>${item.label}</strong></div>
-      <div class="scale">
-        ${[1,2,3,4,5,6,7].map(v => `
-          <label>
-            <input type="radio" name="lik_${item.id}" value="${v}">
-            <span>${v}</span>
-          </label>
-        `).join("")}
-      </div>
-    `;
-    wrap.appendChild(div);
-  }
-}
-
-function collectSurvey(){
-  const out = {};
-  for(const item of SURVEY_ITEMS){
-    const picked = document.querySelector(`input[name="lik_${item.id}"]:checked`);
-    out[item.id] = picked ? Number(picked.value) : "";
-  }
-  out.influences = $("surveyInfluences").value.trim();
-  out.issues = $("surveyIssues").value.trim();
-  return out;
-}
-
-function validateSurvey(){
-  for(const item of SURVEY_ITEMS){
-    const picked = document.querySelector(`input[name="lik_${item.id}"]:checked`);
-    if(!picked) return false;
-  }
-  return true;
 }
 
 // --- Run creation ---
@@ -231,7 +168,7 @@ function startCase(index){
   setStatus(`Case ${index + 1} of 4`);
   $("pillProgress").textContent = `Case ${index + 1} of 4`;
 
-  $("taskHint").textContent = "Completion = Purchase/Confirm. Abandonment = Cancel/Exit.";
+  $("taskHint").textContent = "Please proceed through the checkout steps.";
 
   showScreen("screen-task");
   updateStepButtons();
@@ -308,7 +245,6 @@ function renderStep(){
       <div class="priceRow"><span class="muted">Current price</span><span><strong>${run.product ? money(run.currentPrice) : "—"}</strong></span></div>
       <div class="priceRow"><span class="muted">Status</span><span>${badge}</span></div>
       ${run.priceChanged ? `<div class="priceRow"><span class="muted">Original price</span><span>${money(run.priceBefore)}</span></div>` : ""}
-      <div class="tiny muted" style="margin-top:8px;">(A scripted price update may occur during checkout.)</div>
     </div>
   `;
 
@@ -372,32 +308,29 @@ function renderStep(){
         <div>
           ${sidePrice}
           <div class="cardBlock" style="margin-top:14px;">
-            <div style="font-weight:650;">Summary</div>
+            <div style="font-weight:650;">Instructions</div>
             <div class="muted" style="margin-top:6px;">
-              Completion: Purchase/Confirm<br>
-              Abandonment: Cancel/Exit
+              Select an option to add it to your cart, then proceed through checkout.
             </div>
           </div>
         </div>
       </div>
     `;
 
-    // Attach click events to select a product
     panel.querySelectorAll('.selectableCard').forEach(el => {
       el.addEventListener('click', () => {
         const idx = el.getAttribute('data-idx');
         run.product = products[idx];
         run.basePrice = run.product.basePrice;
         run.currentPrice = run.product.basePrice;
-        renderStep(); // Re-render to show visual selection and update side panel
+        renderStep(); 
       });
     });
 
-    // Back button hidden on the first step entirely
     backBtn.style.display = "none";
     backBtn.disabled = true;
 
-    // Next button disabled until an item is clicked
+    nextBtn.style.display = "inline-block";
     nextBtn.disabled = !run.product;
     nextBtn.textContent = cond.context === "Food" ? "Add to Cart" : "Select Flight";
     return;
@@ -426,6 +359,7 @@ function renderStep(){
     `;
     backBtn.style.display = "inline-block";
     backBtn.disabled = false;
+    nextBtn.style.display = "inline-block";
     nextBtn.disabled = false;
     nextBtn.textContent = "Proceed to Checkout";
     return;
@@ -468,6 +402,7 @@ function renderStep(){
     `;
     backBtn.style.display = "inline-block";
     backBtn.disabled = false;
+    nextBtn.style.display = "inline-block";
     nextBtn.disabled = false;
     nextBtn.textContent = "Go to Review";
     return;
@@ -487,7 +422,7 @@ function renderStep(){
           ` : ""}
           <div style="display:flex; gap:10px; flex-wrap:wrap;">
             <button class="btn primary" id="btnPurchaseConfirm">Purchase/Confirm</button>
-            <button class="btn danger" id="btnCancelFromReview">Cancel/Exit</button>
+            <button class="btn danger" id="btnCancelFromReview">Cancel / Abandon Cart</button>
           </div>
         </div>
       </div>
@@ -506,7 +441,7 @@ function renderStep(){
 
   backBtn.style.display = "inline-block";
   backBtn.disabled = false;
-  nextBtn.disabled = true; // No "next" button on final screen, user clicks Confirm or Cancel
+  nextBtn.style.display = "none"; // Hide standard next button, replaced by confirm/cancel
 }
 
 // --- Finish run ---
@@ -593,10 +528,10 @@ function proceedNext(){
   if(nextIndex < 4){
     startCase(nextIndex);
   } else {
-    // Done 4 cases → survey
+    // Done 4 cases → debrief (Surveys removed)
     setTheme("Study");
-    setStatus("Post-study survey");
-    showScreen("screen-survey");
+    setStatus("Debrief / Export");
+    showScreen("screen-debrief");
   }
 }
 
@@ -604,15 +539,14 @@ function proceedNext(){
 function buildExport(){
   return {
     meta: {
-      version: "v4",
+      version: "v5_NoSurvey",
       exportedAt: nowISO(),
       participantId: state.participantId,
+      groupAssignment: `Group ${state.groupAssignment + 1}`,
       order: state.order,
       timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "unknown",
     },
-    demographics: state.demographics,
     runs: state.runs,
-    survey: collectSurvey(),
   };
 }
 
@@ -646,9 +580,9 @@ function exportCSV(){
   const data = buildExport();
   const rows = [];
   rows.push([
-    "participantId","caseIndex","conditionKey","siteKey","context","direction","deltaPct",
-    "caseName","caseSummary","basePrice","priceBefore","priceAfter",
-    "outcome","orderId","durationMs","rtAfterPriceChangeMs","t0iso"
+    "participantId", "groupAssignment", "caseIndex", "conditionKey", "siteKey", "context", "direction", "deltaPct",
+    "caseName", "caseSummary", "basePrice", "priceBefore", "priceAfter",
+    "outcome", "orderId", "durationMs", "rtAfterPriceChangeMs", "t0iso"
   ]);
 
   data.runs.forEach((run, idx) => {
@@ -660,6 +594,7 @@ function exportCSV(){
 
     rows.push([
       data.meta.participantId,
+      data.meta.groupAssignment,
       idx + 1,
       c.key,
       c.siteKey,
@@ -679,17 +614,11 @@ function exportCSV(){
     ]);
   });
 
-  // Survey section
-  rows.push([]);
-  rows.push(["SURVEY_KEY","SURVEY_VALUE"]);
-  Object.entries(data.survey).forEach(([k,v]) => rows.push([k, String(v ?? "")]));
-
   download(`${state.participantId || "participant"}_session.csv`, toCSV(rows), "text/csv");
 }
 
 // --- Wiring ---
 function init(){
-  renderSurveyLikerts();
   setTheme("Study");
   setStatus("Not started");
   showScreen("screen-consent");
@@ -704,36 +633,23 @@ function init(){
 
   $("btnConsentStart").addEventListener("click", () => {
     const pid = $("participantId").value.trim();
+    const groupVal = $("groupAssignment").value;
     const ok = $("consentCheck").checked;
+    
     if(!pid){ alert("Please enter a Participant ID."); return; }
-    if(!ok){ alert("Please confirm that you have completed the consent form."); return; }
+    if(groupVal === ""){ alert("Please select a Group Assignment."); return; }
+    if(!ok){ alert("Please confirm that the external consent form is completed."); return; }
 
     state.participantId = pid;
-    state.order = getOrderForParticipant(pid);
+    state.groupAssignment = parseInt(groupVal, 10);
+    state.order = ORDERS[state.groupAssignment];
+    
     state.runs = [];
     state.currentIndex = 0;
     state.active = null;
 
-    setTheme("Study");
-    setStatus("Demographics");
-    showScreen("screen-demographics");
-  });
-
-  $("btnDemographicsNext").addEventListener("click", () => {
-    state.demographics = {
-      ageRange: $("demoAge").value,
-      shoppingFrequency: $("demoShopFreq").value,
-      comfort: $("demoComfort").value,
-      device: $("demoDevice").value,
-      notes: $("demoNotes").value.trim(),
-    };
-
-    // START CASE 1 OF 4 (guaranteed)
+    // START CASE 1 OF 4 directly (skipping demographic screen)
     startCase(0);
-  });
-
-  $("btnCancelExit").addEventListener("click", () => {
-    finishRun("cancel_exit");
   });
 
   $("btnBack").addEventListener("click", () => {
@@ -750,16 +666,6 @@ function init(){
 
   $("btnConfirmedContinue").addEventListener("click", () => {
     proceedNext();
-  });
-
-  $("btnSurveyNext").addEventListener("click", () => {
-    if(!validateSurvey()){
-      alert("Please answer all rating questions before continuing.");
-      return;
-    }
-    setTheme("Study");
-    setStatus("Debrief / Export");
-    showScreen("screen-debrief");
   });
 
   $("btnExportJSON").addEventListener("click", exportJSON);

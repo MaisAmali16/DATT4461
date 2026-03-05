@@ -27,87 +27,36 @@
         <strong>Privacy:</strong> Please do not enter your name or email. Use your assigned Participant ID only.
       </div>
 
-      <label class="field">
-        <span>Participant ID (required)</span>
-        <input id="participantId" type="text" placeholder="e.g., P012" autocomplete="off" />
-      </label>
+      <div class="grid2">
+        <label class="field">
+          <span>Participant ID (required)</span>
+          <input id="participantId" type="text" placeholder="e.g., P01" autocomplete="off" />
+        </label>
+
+        <label class="field">
+          <span>Group Assignment (required)</span>
+          <select id="groupAssignment">
+            <option value="">Select Group...</option>
+            <option value="0">Group 1</option>
+            <option value="1">Group 2</option>
+            <option value="2">Group 3</option>
+            <option value="3">Group 4</option>
+          </select>
+        </label>
+      </div>
 
       <label class="checkbox">
         <input id="consentCheck" type="checkbox" />
-        <span>I confirm that I have already completed the consent form for this study.</span>
+        <span>I confirm that I have already completed the external consent form for this study.</span>
       </label>
 
       <div class="row">
-        <button class="btn primary" id="btnConsentStart">Start</button>
+        <button class="btn primary" id="btnConsentStart">Start Study</button>
       </div>
 
       <p class="tiny muted">
         This interface simulates common online checkout steps. No real payment is processed.
       </p>
-    </section>
-
-    <section class="card hidden" id="screen-demographics">
-      <h1>Demographics</h1>
-
-      <div class="grid2">
-        <label class="field">
-          <span>Age range</span>
-          <select id="demoAge">
-            <option value="">Select…</option>
-            <option>Under 18</option>
-            <option>18–24</option>
-            <option>25–34</option>
-            <option>35–44</option>
-            <option>45+</option>
-            <option>Prefer not to say</option>
-          </select>
-        </label>
-
-        <label class="field">
-          <span>Online shopping frequency</span>
-          <select id="demoShopFreq">
-            <option value="">Select…</option>
-            <option>Never</option>
-            <option>Rarely</option>
-            <option>Sometimes</option>
-            <option>Often</option>
-            <option>Very often</option>
-          </select>
-        </label>
-
-        <label class="field">
-          <span>Comfort using online checkout</span>
-          <select id="demoComfort">
-            <option value="">Select…</option>
-            <option>1 (Not comfortable)</option>
-            <option>2</option>
-            <option>3</option>
-            <option>4</option>
-            <option>5 (Very comfortable)</option>
-          </select>
-        </label>
-
-        <label class="field">
-          <span>Device used</span>
-          <select id="demoDevice">
-            <option value="">Select…</option>
-            <option>Laptop</option>
-            <option>Desktop</option>
-            <option>Tablet</option>
-            <option>Phone</option>
-            <option>Other</option>
-          </select>
-        </label>
-      </div>
-
-      <label class="field">
-        <span>Anything else you'd like to share? (optional)</span>
-        <textarea id="demoNotes" rows="3" placeholder="Optional"></textarea>
-      </label>
-
-      <div class="row">
-        <button class="btn primary" id="btnDemographicsNext">Continue</button>
-      </div>
     </section>
 
     <section class="card hidden" id="screen-task">
@@ -125,9 +74,7 @@
 
       <div class="panel" id="stepContent"></div>
 
-      <div class="row spaceBetween">
-        <button class="btn danger" id="btnCancelExit">Cancel/Exit</button>
-
+      <div class="row" style="justify-content: flex-end;">
         <div class="row">
           <button class="btn ghost" id="btnBack">Back</button>
           <button class="btn primary" id="btnNext">Next</button>
@@ -151,30 +98,6 @@
           <button class="btn ghost" id="btnConfirmedContinue">Continue</button>
           <span class="tiny muted" id="autoContinueHint"></span>
         </div>
-      </div>
-    </section>
-
-    <section class="card hidden" id="screen-survey">
-      <h1>Post-study survey</h1>
-      <p class="muted">
-        Rate each statement based on your overall experience.
-        (1 = strongly disagree, 7 = strongly agree)
-      </p>
-
-      <div class="likertBlock" id="surveyLikerts"></div>
-
-      <label class="field">
-        <span>What influenced your decisions the most? (optional)</span>
-        <textarea id="surveyInfluences" rows="4" placeholder="Optional"></textarea>
-      </label>
-
-      <label class="field">
-        <span>Anything confusing or frustrating? (optional)</span>
-        <textarea id="surveyIssues" rows="4" placeholder="Optional"></textarea>
-      </label>
-
-      <div class="row">
-        <button class="btn primary" id="btnSurveyNext">Continue</button>
       </div>
     </section>
 
